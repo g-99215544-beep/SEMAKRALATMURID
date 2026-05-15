@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard Semakan Ralat Murid — SK Sri Aman</title>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════
+   SCREEN STYLES (upload + report)
+═══════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f0f4f8;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+/* ── Upload Screen ── */
+#upload-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.upload-card {
+  background: white;
+  border-radius: 16px;
+  padding: 48px 40px;
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(44,62,122,0.13);
+  border-top: 5px solid #2c3e7a;
+}
+
+.upload-card .school-name {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.upload-card h1 {
+  font-size: 22px;
+  color: #2c3e7a;
+  font-weight: 700;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.upload-card .subtitle {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 32px;
+}
+
+.drop-zone {
+  border: 2.5px dashed #b0c4e8;
+  border-radius: 12px;
+  padding: 40px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f8faff;
+  margin-bottom: 20px;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: #2c3e7a;
+  background: #eef3ff;
+}
+
+.drop-zone .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.drop-zone p {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.drop-zone .hint {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.drop-zone input[type="file"] { display: none; }
+
+.btn-upload {
+  background: #2c3e7a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.btn-upload:hover { background: #1e2d5a; }
+
+.format-hint {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #aaa;
+}
+
+/* ── Processing ── */
+#processing-screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 16px;
+}
+
+.spinner {
+  width: 48px; height: 48px;
+  border: 4px solid #e0e7f5;
+  border-top-color: #2c3e7a;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#processing-screen p { color: #555; font-size: 14px; }
+
+/* ── Report Screen ── */
+#report-screen { display: none; }
+
+.report-toolbar {
+  background: white;
+  border-bottom: 2px solid #dce6f5;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.toolbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e7a;
+}
+
+.toolbar-actions { display: flex; gap: 10px; }
+
+.btn {
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-print {
+  background: #2c3e7a;
+  color: white;
+}
+.btn-print:hover { background: #1e2d5a; }
+
+.btn-new {
+  background: #f0f4f8;
+  color: #2c3e7a;
+  border: 1.5px solid #b0c4e8;
+}
+.btn-new:hover { background: #dce6f5; }
+
+/* ── Report Content ── */
+#report-content {
+  padding: 16px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.main-header {
+  text-align: center;
+  background: white;
+  border-radius: 10px;
+  padding: 20px 16px 16px;
+  margin-bottom: 12px;
+  border-top: 5px solid #2c3e7a;
+  box-shadow: 0 2px 8px rgba(44,62,122,0.08);
+}
+
+.main-header h1 {
+  font-size: 22px;
+  color: #2c3e7a;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.main-header .sub {
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.main-header .tarikh-badge {
+  display: inline-block;
+  color: #c0392b;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1.5px solid #e74c3c;
+  padding: 3px 14px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.stat-box { text-align: center; }
+.stat-box .s-num {
+  font-size: 30px;
+  font-weight: 700;
+  color: #2c3e7a;
+  line-height: 1;
+}
+.stat-box .s-lbl {
+  font-size: 10px;
+  color: #999;
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.note-box {
+  background: #fef3cd;
+  border: 1.5px solid #f0ad4e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #7d4e00;
+  line-height: 1.5;
+}
+
+.legend {
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #666;
+}
+
+.legend .ok-eg { color: #27ae60; font-weight: 700; }
+.legend .err-eg { color: #e67e22; font-weight: 700; }
+
+/* Tahun block */
+.tahun-block { margin-bottom: 18px; }
+
+.tahun-header {
+  background: #2c3e7a;
+  color: white;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  letter-spacing: 0.5px;
+}
+
+/* Kelas header */
+.kelas-header {
+  background: #dce6f5;
+  border-left: 4px solid #2c3e7a;
+  padding: 7px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c3e7a;
+  margin-top: 2px;
+}
+
+.kelas-badge {
+  background: #e74c3c;
+  color: white;
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+thead tr { background: #2c3e7a; color: white; }
+
+th {
+  padding: 6px 5px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.th-num  { width: 3%; }
+.th-name { width: 30%; text-align: left; padding-left: 8px; }
+.th-id   { width: 11%; }
+
+tbody tr { border-bottom: 1px solid #e8edf5; }
+tbody tr:nth-child(even) { background: #f7f9fd; }
+tbody tr:nth-child(odd)  { background: white; }
+
+td {
+  padding: 5px 5px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+td.t-num  { color: #aaa; font-size: 10px; }
+td.t-name {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: #1a1a2e;
+  padding-left: 8px;
+}
+td.t-id   { font-size: 10px; color: #666; }
+
+td.ok  { color: #27ae60; font-weight: 700; font-size: 13px; }
+td.err {
+  background: #fff3e0;
+  color: #e65100;
+  font-weight: 700;
+  font-size: 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  padding: 3px 3px;
+}
+
+.ebadge {
+  display: inline-block;
+  color: white;
+  border-radius: 50%;
+  width: 16px; height: 16px;
+  text-align: center;
+  line-height: 16px;
+  font-size: 9px;
+  font-weight: 700;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.kelas-footer {
+  font-size: 10px;
+  color: #666;
+  padding: 5px 10px;
+  border-top: 1px solid #dce6f5;
+  background: #f7f9fd;
+  margin-bottom: 10px;
+}
+
+.page-footer {
+  text-align: center;
+  color: #bbb;
+  font-size: 10px;
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e7f5;
+  margin-bottom: 16px;
+}
+
+/* ═══════════════════════════════════════════════════
+   PRINT STYLES
+═══════════════════════════════════════════════════ */
+@media print {
+  @page { size: A4 landscape; margin: 1cm 1.2cm; }
+
+  #upload-screen,
+  #processing-screen,
+  .report-toolbar { display: none !important; }
+
+  #report-screen { display: block !important; }
+
+  body { background: white; font-size: 8pt; }
+
+  #report-content {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .main-header {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 12px 8px 10px;
+    border-top: 3px solid #2c3e7a;
+  }
+
+  .main-header h1 { font-size: 16pt; }
+  .stat-box .s-num { font-size: 20pt; }
+
+  .tahun-block { page-break-inside: avoid; }
+  .kelas-header + table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+
+  table { font-size: 7.5pt; }
+  th    { font-size: 7pt; padding: 4px 3px; }
+  td    { padding: 3px; font-size: 7.5pt; }
+  td.err { font-size: 7pt; }
+  td.ok  { font-size: 10pt; }
+
+  .kelas-badge { font-size: 7pt; }
+  .kelas-header { font-size: 8pt; padding: 4px 8px; }
+  .tahun-header { font-size: 9pt; padding: 5px 10px; }
+  .kelas-footer { font-size: 7pt; }
+  .note-box { font-size: 7.5pt; }
+  .legend { font-size: 7.5pt; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     UPLOAD SCREEN
+══════════════════════════════════════════ -->
+<div id="upload-screen">
+  <div class="upload-card">
+    <div class="school-name">SK Sri Aman, Ayer Itam, Pulau Pinang</div>
+    <h1>🎓 Dashboard Semakan Ralat Murid</h1>
+    <p class="subtitle">Muat naik fail APDM untuk semak dan jana laporan ralat</p>
+
+    <div class="drop-zone" id="drop-zone">
+      <span class="icon">📊</span>
+      <p>Seret &amp; lepas fail Excel di sini</p>
+      <p class="hint">atau klik butang di bawah untuk pilih fail</p>
+      <input type="file" id="file-input" accept=".xlsx,.xls"/>
+    </div>
+
+    <button class="btn-upload" onclick="document.getElementById('file-input').click()">
+      📂 Pilih Fail Excel (.xlsx)
+    </button>
+
+    <p class="format-hint">
+      Format yang diterima: fail APDM Keseluruhan Murid (.xlsx)<br/>
+      Header mesti bermula dengan lajur <strong>BIL.</strong> &amp; <strong>ID MURID</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PROCESSING SCREEN
+══════════════════════════════════════════ -->
+<div id="processing-screen">
+  <div class="spinner"></div>
+  <p id="processing-msg">Sedang memproses data...</p>
+</div>
+
+<!-- ══════════════════════════════════════════
+     REPORT SCREEN
+══════════════════════════════════════════ -->
+<div id="report-screen">
+  <div class="report-toolbar">
+    <div class="toolbar-title">📋 Dashboard Semakan Ralat Murid — SK Sri Aman</div>
+    <div class="toolbar-actions">
+      <button class="btn btn-new" onclick="resetApp()">⬆ Upload Fail Baru</button>
+      <button class="btn btn-print" onclick="window.print()">🖨 Cetak / Simpan PDF</button>
+    </div>
+  </div>
+  <div id="report-content"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// Constants
+// ══════════════════════════════════════════
+const TAHUN_ORDER = [
+  'PRASEKOLAH','TAHUN SATU','TAHUN DUA','TAHUN TIGA',
+  'TAHUN EMPAT','TAHUN LIMA','TAHUN ENAM'
+];
+const TAHUN_LABEL = {
+  'PRASEKOLAH':'PRASEKOLAH',
+  'TAHUN SATU':'TAHUN 1', 'TAHUN DUA':'TAHUN 2',
+  'TAHUN TIGA':'TAHUN 3', 'TAHUN EMPAT':'TAHUN 4',
+  'TAHUN LIMA':'TAHUN 5', 'TAHUN ENAM':'TAHUN 6'
+};
+const KELAS_ORDER = [
+  'PRASEKOLAH AZ ZAHRA','PRASEKOLAH NUR IMAN',
+  'BESTARI','CEMERLANG','GEMILANG'
+];
+const BULAN = [
+  '','Januari','Februari','Mac','April','Mei','Jun',
+  'Julai','Ogos','September','Oktober','November','Disember'
+];
+
+// ══════════════════════════════════════════
+// Drag & Drop
+// ══════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) processFile(e.target.files[0]);
+});
+
+// ══════════════════════════════════════════
+// Main Processing
+// ══════════════════════════════════════════
+function showScreen(name) {
+  document.getElementById('upload-screen').style.display     = name === 'upload'     ? 'flex'  : 'none';
+  document.getElementById('processing-screen').style.display = name === 'processing' ? 'flex'  : 'none';
+  document.getElementById('report-screen').style.display     = name === 'report'     ? 'block' : 'none';
+}
+
+function resetApp() {
+  fileInput.value = '';
+  document.getElementById('report-content').innerHTML = '';
+  showScreen('upload');
+}
+
+function setMsg(msg) {
+  document.getElementById('processing-msg').textContent = msg;
+}
+
+function processFile(file) {
+  showScreen('processing');
+  setMsg('Membaca fail Excel...');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      setMsg('Menganalisis data murid...');
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      // Find header row
+      let headerRowIdx = -1;
+      for (let i = 0; i < raw.length; i++) {
+        const row = raw[i];
+        if (row.includes('BIL.') || row.includes('ID MURID')) {
+          headerRowIdx = i;
+          break;
+        }
+      }
+      if (headerRowIdx === -1) throw new Error('Tidak jumpa baris header. Pastikan fail adalah format APDM yang betul.');
+
+      const headers = raw[headerRowIdx];
+      const colMap = {};
+      headers.forEach((h, i) => { if (h !== '') colMap[String(h).trim()] = i; });
+
+      const dataRows = raw.slice(headerRowIdx + 1).filter(r => r[0] !== '' && r[0] !== null && r[0] !== 'BIL.');
+
+      setMsg('Mengesan ralat...');
+      const { students, poskodOnly } = analyseData(dataRows, colMap);
+
+      setMsg('Menjana laporan...');
+      const html = buildReport(students, poskodOnly, dataRows.length, file.name);
+
+      document.getElementById('report-content').innerHTML = html;
+      showScreen('report');
+    } catch (err) {
+      showScreen('upload');
+      alert('Ralat memproses fail:\n' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════
+// Error Detection
+// ══════════════════════════════════════════
+function blank(v) { return v === null || v === undefined || String(v).trim() === ''; }
+
+function analyseData(rows, col) {
+  const students = [];
+  const poskodOnly = [];
+
+  rows.forEach(row => {
+    const get = key => col[key] !== undefined ? row[col[key]] : '';
+
+    const nama     = get('NAMA');
+    const id       = get('ID MURID');
+    const tahun    = String(get('TAHUN / TINGKATAN')).trim().toUpperCase();
+    const kelas    = String(get('NAMA KELAS')).trim().toUpperCase();
+    const alamat1  = get('ALAMAT 1');
+    const poskod   = get('POSKOD');
+    const hubP1    = get('HUBUNGAN PENJAGA 1');
+    const hpP1     = get('NO. TEL. BIMBIT PENJAGA 1');
+    const pendRaw  = get('PENDAPATAN PENJAGA 1');
+    const tangRaw  = get('TANGGUNGAN');
+
+    const errAlamat = blank(alamat1);
+    const errHubP1  = blank(hubP1);
+    const errHpP1   = blank(hpP1);
+    const errPoskod = blank(poskod);
+
+    let errPendapatan = false;
+    const pend = parseFloat(pendRaw);
+    if (!isNaN(pend) && pend > 0 && pend < 100) errPendapatan = true;
+
+    let errTanggungan = null; // null = OK, 0 = Tanggungan 0, 1 = Tanggungan 1
+    if (blank(tangRaw) || tangRaw === 0 || String(tangRaw).trim() === '0') {
+      errTanggungan = 0;
+    } else {
+      const t = parseInt(tangRaw);
+      if (!isNaN(t) && t === 1) errTanggungan = 1;
+    }
+
+    // Poskod-only case
+    if (!errAlamat && errPoskod) {
+      poskodOnly.push({ nama, id });
+    }
+
+    const totalErr = [errAlamat, errHubP1, errHpP1, errPendapatan, errTanggungan !== null]
+                       .filter(Boolean).length;
+
+    if (totalErr > 0) {
+      students.push({
+        nama, id, tahun, kelas,
+        errAlamat, errHubP1, errHpP1, errPendapatan, errTanggungan, totalErr
+      });
+    }
+  });
+
+  return { students, poskodOnly };
+}
+
+// ══════════════════════════════════════════
+// Report Builder
+// ══════════════════════════════════════════
+function buildReport(students, poskodOnly, totalMurid, fileName) {
+  const now    = new Date();
+  const tarikh = `${now.getDate()} ${BULAN[now.getMonth()+1]} ${now.getFullYear()}`;
+
+  // Group by tahun → kelas
+  const grouped = {};
+  TAHUN_ORDER.forEach(t => { grouped[t] = {}; });
+
+  students.forEach(s => {
+    const t = s.tahun;
+    const k = s.kelas;
+    if (!grouped[t]) grouped[t] = {};
+    if (!grouped[t][k]) grouped[t][k] = [];
+    grouped[t][k].push(s);
+  });
+
+  // Stats
+  const totalRalat = students.length;
+  const totalKelas = Object.values(grouped).reduce((n, kObj) => n + Object.keys(kObj).length, 0);
+  const jenisRalat = 5;
+
+  // Note box
+  let noteHtml = '';
+  if (poskodOnly.length > 0) {
+    const names = poskodOnly.map(s => `<strong>${esc(s.nama)}</strong>`).join(', ');
+    noteHtml = `<div class="note-box">
+      ⚠ <strong>Nota:</strong> Kolum <em>Poskod</em> tidak dipaparkan dalam jadual.
+      Terdapat ${poskodOnly.length} murid yang mempunyai ralat poskod kosong sahaja (alamat OK) —
+      sila semak secara manual: ${names}.
+    </div>`;
+  }
+
+  // Build sections
+  let sectionsHtml = '';
+  TAHUN_ORDER.forEach(tahun => {
+    const kelasMap = grouped[tahun];
+    if (!kelasMap || Object.keys(kelasMap).length === 0) return;
+
+    const label = TAHUN_LABEL[tahun] || tahun;
+    let kelasBlocks = '';
+
+    KELAS_ORDER.forEach(kelas => {
+      const list = kelasMap[kelas];
+      if (!list || list.length === 0) return;
+
+      const displayName = kelas.startsWith('PRASEKOLAH') ? kelas : `${label} ${kelas}`;
+      const totalErr    = list.reduce((n, s) => n + s.totalErr, 0);
+
+      let rowsHtml = '';
+      list.forEach((s, i) => {
+        rowsHtml += `
+        <tr>
+          <td class="t-num">${i+1}</td>
+          <td class="t-name">${esc(s.nama)} ${errBadge(s.totalErr)}</td>
+          <td class="t-id">${s.id}</td>
+          ${s.errAlamat        ? errCell('Alamat Kosong')    : okCell()}
+          ${s.errHubP1         ? errCell('Hub. P1 Kosong')   : okCell()}
+          ${s.errPendapatan    ? errCell('Pndptn &lt; RM100'): okCell()}
+          ${tangCell(s.errTanggungan)}
+          ${s.errHpP1          ? errCell('HP P1 Kosong')     : okCell()}
+        </tr>`;
+      });
+
+      kelasBlocks += `
+      <div class="kelas-header">
+        <span>☰ ${esc(displayName)}</span>
+        <span class="kelas-badge">${list.length} murid ada ralat</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th class="th-num">#</th>
+            <th class="th-name">NAMA MURID</th>
+            <th class="th-id">ID MURID</th>
+            <th>ALAMAT</th>
+            <th>HUBUNGAN P1</th>
+            <th>PENDAPATAN</th>
+            <th>TANGGUNGAN</th>
+            <th>HP P1</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="kelas-footer">
+        Jumlah murid: <strong>${list.length}</strong> &nbsp;|&nbsp;
+        Ada ralat: <strong>${list.length}</strong> &nbsp;|&nbsp;
+        Jumlah ralat: <strong>${totalErr}</strong>
+      </div>`;
+    });
+
+    if (!kelasBlocks) return;
+
+    sectionsHtml += `
+    <div class="tahun-block">
+      <div class="tahun-header">✎ ${label}</div>
+      ${kelasBlocks}
+    </div>`;
+  });
+
+  return `
+  <div class="main-header">
+    <h1>🎓 Dashboard Semakan Ralat Murid</h1>
+    <div class="sub">Disusun mengikut kelas &amp; tahun &nbsp;|&nbsp; SK Sri Aman, Ayer Itam</div>
+    <div class="tarikh-badge">📅 Tarikh Data: ${tarikh}</div>
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="s-num">${totalMurid}</div>
+        <div class="s-lbl">Jumlah Murid</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-num">${totalKelas}</div>
+        <div class="s-lbl">Kelas</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-num">${totalRalat}</div>
+        <div class="s-lbl">Murid Ada Ralat</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-num">${jenisRalat}</div>
+        <div class="s-lbl">Jenis Ralat</div>
+      </div>
+    </div>
+  </div>
+
+  ${noteHtml}
+
+  <div class="legend">
+    <span class="ok-eg">✓ Tiada ralat</span>
+    &nbsp;&nbsp;&nbsp;
+    <span class="err-eg">⚠ Ralat — Perlu dibetulkan</span>
+  </div>
+
+  ${sectionsHtml}
+
+  <div class="page-footer">
+    Dijana berdasarkan data APDM &nbsp;|&nbsp; SK Sri Aman, Ayer Itam, Pulau Pinang
+    &nbsp;|&nbsp; Fail: ${esc(fileName)} &nbsp;|&nbsp; Dijana pada: ${tarikh}
+  </div>`;
+}
+
+// ── HTML helpers ─────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function okCell()  { return '<td class="ok">✓</td>'; }
+function errCell(label) { return `<td class="err">⚠ ${label}</td>`; }
+
+function tangCell(val) {
+  if (val === 0) return errCell('Tanggungan 0');
+  if (val === 1) return errCell('Tanggungan 1');
+  return okCell();
+}
+
+function errBadge(n) {
+  if (n === 0) return '';
+  const colors = ['','#27ae60','#e67e22','#e74c3c','#c0392b','#7b241c'];
+  const bg = colors[Math.min(n, colors.length - 1)];
+  return `<span class="ebadge" style="background:${bg}">${n}</span>`;
+}
+</script>
+</body>
+</html>
